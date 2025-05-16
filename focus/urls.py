@@ -8,7 +8,7 @@ from .views import upload_heartbeat_data#, upload_pressure_data
 
 router = DefaultRouter()
 router.register(r'raw', views.RawDataViewSet, basename='raw')
-
+router.register(r'focus', views.FocusDataViewSet, basename='focus')
 urlpatterns = [
     # ViewSet 라우팅
     path('', include(router.urls)),

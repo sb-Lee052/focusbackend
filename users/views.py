@@ -5,6 +5,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework import status
 from rest_framework.response import Response
 from django.views.decorators.csrf import csrf_exempt
+from focus.serializers import FocusDataSerializer
 import json
 
 
@@ -50,9 +51,13 @@ def login_view(request):
 @permission_classes([IsAuthenticated])
 def user_detail(request):
     user = request.user
+    focus_qs = user.focus_data.order_by('-timestamp')
+    focus_serializer = FocusDataSerializer(focus_qs, many=True)
+
     data = {
         'id': user.id,
         'username': user.username,
         'email': user.email,
+        'focus_data': focus_serializer.data
     }
     return Response(data, status=status.HTTP_200_OK)

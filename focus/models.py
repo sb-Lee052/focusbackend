@@ -1,8 +1,14 @@
 # focus/models.py
 from django.db import models
 from django.contrib.auth.models import User
+from django.conf import settings
 
 class FocusData(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete = models.CASCADE,
+        related_name = 'focus_data'
+                            )
     timestamp = models.DateTimeField(auto_now_add=True)
     blink_count = models.IntegerField(
         default=0,
@@ -29,6 +35,11 @@ class FocusData(models.Model):
         return f"FocusData {self.timestamp}"
 
 class RawData(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete = models.CASCADE,
+        related_name = 'raw_data'
+                            )
     focus_value     = models.FloatField(
         help_text="집중도 값 (0.0 ~ 1.0)",
         default=0.0
@@ -59,7 +70,11 @@ class RawData(models.Model):
         return f"{self.focus_value} @ {self.timestamp}"
 
 class FaceLostEvent(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete = models.CASCADE,
+        related_name = 'face_lost_events'
+                            )
     date = models.DateField()                   # "2025-05-02"
     time = models.TimeField()                   # "14:23"
     duration_sec = models.FloatField()          # 초단위 지속 시간
@@ -73,6 +88,11 @@ class FaceLostEvent(models.Model):
 
 # 심박수 저장 모델
 class Heartbeat(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete = models.CASCADE,
+        related_name = 'heartbeats'
+                            )
     timestamp = models.DateTimeField()
     bpm = models.IntegerField(help_text="심박수 (beats per minute)")
 
@@ -81,6 +101,11 @@ class Heartbeat(models.Model):
 
 # 펜 압력 저장 모델
 class PressureEvent(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete = models.CASCADE,
+        related_name = 'pressure_events'
+                            )
     timestamp = models.DateTimeField()
     pressure_value = models.FloatField(help_text="입력 값 (0~10)")
 

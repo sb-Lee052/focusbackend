@@ -19,6 +19,7 @@ from django.urls import path
 from django.urls import path, include
 from django.contrib import admin
 from django.urls import path, include
+from rest_framework.authtoken.views import obtain_auth_token
 from focus.views import upload_heartbeat_data
 
 urlpatterns = [
@@ -27,4 +28,5 @@ urlpatterns = [
     path('users/', include('users.urls')),
     path('api-auth/', include('rest_framework.urls', namespace='rest_framework')),
     path('api/heartbeat/', upload_heartbeat_data),
+    path('api-token-auth/', obtain_auth_token)
 ]

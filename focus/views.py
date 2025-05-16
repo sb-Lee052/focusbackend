@@ -1,3 +1,5 @@
+
+from .serializers import FocusDataSerializer
 from django.conf import settings
 from django.utils.timezone import make_naive
 from datetime import datetime, time
@@ -29,11 +31,14 @@ class RawDataViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = RawDataSerializer
     permission_classes = [IsAuthenticated]
 
+    # def get_queryset(self):
+    #     return self.request.user.raw_data.order_by('timestamp')
+
 
 # 2) raw_data 업로드
 @api_view(['POST'])
 @authentication_classes([])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def upload_raw_data(request):
     created = 0
     for item in request.data or []:
@@ -45,6 +50,7 @@ def upload_raw_data(request):
             dt = timezone.make_aware(dt, timezone.get_current_timezone())
 
         RawData.objects.create(
+            user=request.user,
             blink_count=item.get('blink_count', 0),
             eyes_closed_time=item.get('eyes_closed_time', 0.0),
             zoning_out_time=item.get('zoning_out_time', 0.0),
@@ -58,11 +64,12 @@ def upload_raw_data(request):
 
 # 3) focus_data 업로드
 @api_view(['POST'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def upload_focus_data(request):
     data = request.data or {}
 
     FocusData.objects.create(
+        user=request.user,
         blink_count=data.get('blink_count', 0),
         eyes_closed_time=data.get('eyes_closed_time', 0.0),
         zoning_out_time=data.get('zoning_out_time', 0.0),
@@ -72,18 +79,18 @@ def upload_focus_data(request):
     return Response({"message": "1 focus record saved."}, status=status.HTTP_201_CREATED)
 
 # ✅ 여기에 붙이기
-@api_view(['POST'])
-@permission_classes([AllowAny])
-def upload_heartbeat_data(request):
-    data = request.data
-    timestamp = data.get('timestamp')
-    bpm = data.get('bpm')
-
-    if not timestamp or bpm is None:
-        return Response({"error": "timestamp and bpm are required"}, status=400)
-
-    Heartbeat.objects.create(timestamp=timestamp, bpm=bpm)
-    return Response({"message": "heartbeat saved"}, status=201)
+# @api_view(['POST'])
+# @permission_classes([IsAuthenticated])
+# def upload_heartbeat_data(request):
+#     data = request.data
+#     timestamp = data.get('timestamp')
+#     bpm = data.get('bpm')
+#
+#     if not timestamp or bpm is None:
+#         return Response({"error": "timestamp and bpm are required"}, status=400)
+#
+#     Heartbeat.objects.create(timestamp=timestamp, bpm=bpm)
+#     return Response({"message": "heartbeat saved"}, status=201)
 
 
 @api_view(['POST'])
@@ -221,13 +228,13 @@ def daily_focus_summary(request):
 
 # 7) 얼굴 감지 안 된 이벤트 저장
 @api_view(['POST'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def upload_face_lost_summary(request):
     events = request.data or []
     created = 0
     for item in events:
         FaceLostEvent.objects.create(
-            user=request.user if hasattr(request, 'user') else None,
+            user=request.user,
             date=item.get('Date'),
             time=item.get('Time'),
             duration_sec=item.get('FaceLostDurationSec')
@@ -329,28 +336,8 @@ def blink_summary_by_minute(request):
     return JsonResponse({"timeline": timeline})
 
 
-# @api_view(['POST'])
-# @permission_classes([AllowAny])
-# def upload_heartbeat_data(request):
-#     data = request.data
-#     Heartbeat.objects.create(
-#         timestamp=data.get('timestamp'),
-#         bpm=data.get('bpm')
-#     )
-#     return Response({"message": "heartbeat saved."}, status=201)
-#
-# @api_view(['POST'])
-# @permission_classes([AllowAny])
-# def upload_pressure_data(request):
-#     data = request.data
-#     PressureEvent.objects.create(
-#         timestamp=data.get('timestamp'),
-#         is_pressed=data.get('is_pressed', False)
-#     )
-#     return Response({"message": "pressure saved."}, status=201)
-
 @api_view(['POST'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def upload_heartbeat_data(request):
     data = request.data
 
@@ -400,8 +387,19 @@ def upload_heartbeat_data(request):
                         status=status.HTTP_400_BAD_REQUEST)
 
     # 5) 저장
-    Heartbeat.objects.create(timestamp=dt, bpm=bpm_value)
-    PressureEvent.objects.create(timestamp=dt, pressure_value=pressure_value)
+    Heartbeat.objects.create(user=request.user, timestamp=dt, bpm=bpm_value)
+    PressureEvent.objects.create(user=request.user, timestamp=dt, pressure_value=pressure_value)
 
     return Response({"message": "heartbeat 및 pressure 저장 완료"},
                     status=status.HTTP_201_CREATED)
+
+class FocusDataViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    현재 로그인한 유저의 FocusData 목록 조회 (GET /focus/)
+    """
+    serializer_class = FocusDataSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        # related_name='focus_data' 로 정의했으므로 아래와 같이도 가능
+        return self.request.user.focus_data.order_by('-timestamp')
