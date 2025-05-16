@@ -118,7 +118,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CORS_ALLOWED_ORIGINS = [
   "http://localhost:3000",        # 개발 중 로컬
-  "http://10.220.184.138:3000",     # 같은 LAN에서 접속할 때
+  "http://192.168.68.230:3000",     # 같은 LAN에서 접속할 때
 ]
 
 REST_FRAMEWORK = {
@@ -130,3 +130,9 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.IsAuthenticated',
     ),
 }
+# settings.py
+CSRF_TRUSTED_ORIGINS = [
+    "http://52.64.14.111",
+    "https://52.64.14.111",
+]
+

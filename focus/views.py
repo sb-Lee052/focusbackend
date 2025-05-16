@@ -22,6 +22,8 @@ from .services import calc_focus_score
 from .models import Heartbeat, PressureEvent
 from .serializers import HeartbeatSerializer, PressureEventSerializer
 
+from django.views.decorators.csrf import csrf_exempt
+from rest_framework.authentication import TokenAuthentication
 
 
 
@@ -77,20 +79,6 @@ def upload_focus_data(request):
     )
 
     return Response({"message": "1 focus record saved."}, status=status.HTTP_201_CREATED)
-
-# ✅ 여기에 붙이기
-# @api_view(['POST'])
-# @permission_classes([IsAuthenticated])
-# def upload_heartbeat_data(request):
-#     data = request.data
-#     timestamp = data.get('timestamp')
-#     bpm = data.get('bpm')
-#
-#     if not timestamp or bpm is None:
-#         return Response({"error": "timestamp and bpm are required"}, status=400)
-#
-#     Heartbeat.objects.create(timestamp=timestamp, bpm=bpm)
-#     return Response({"message": "heartbeat saved"}, status=201)
 
 
 @api_view(['POST'])
@@ -335,8 +323,10 @@ def blink_summary_by_minute(request):
 
     return JsonResponse({"timeline": timeline})
 
+@csrf_exempt
 
 @api_view(['POST'])
+@authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated])
 def upload_heartbeat_data(request):
     data = request.data
