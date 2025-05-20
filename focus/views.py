@@ -1,4 +1,6 @@
-
+from .serializers import StudySessionSerializer
+from .models import StudySession
+from django_filters.rest_framework import DjangoFilterBackend
 from .serializers import FocusDataSerializer
 from django.conf import settings
 from django.utils.timezone import make_naive
@@ -24,6 +26,50 @@ from .serializers import HeartbeatSerializer, PressureEventSerializer
 
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.authentication import TokenAuthentication
+
+
+    # focus/views.py
+class StudySessionViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = StudySession.objects.all()
+    serializer_class = StudySessionSerializer
+    filter_backends  = [DjangoFilterBackend]
+    filterset_fields = ['start_at__date']   # date 파라미터로 필터링
+@csrf_exempt
+@api_view(['POST'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def start_study(request):
+    # 인증된 사용자(request.user) 가정
+    place = request.POST.get('place') or request.data.get('place')
+    session = StudySession.objects.create(
+        user=request.user,
+        place=place,
+        start_at=timezone.now()
+    )
+    return JsonResponse({
+        "session_id": session.id,
+        "start_at": session.start_at.isoformat()
+    })
+
+@csrf_exempt
+@api_view(['POST'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def end_study(request):
+    session_id = request.POST.get('session_id') or request.data.get('session_id')
+    try:
+        session = StudySession.objects.get(id=session_id, user=request.user)
+        session.end_at = timezone.now()
+        session.save()
+        duration = (session.end_at - session.start_at).total_seconds()
+        return JsonResponse({
+            "session_id": session.id,
+            "start_at": session.start_at.isoformat(),
+            "end_at": session.end_at.isoformat(),
+            "duration": duration
+        })
+    except StudySession.DoesNotExist:
+        return JsonResponse({"error": "Invalid session_id"}, status=400)
 
 
 
@@ -387,9 +433,14 @@ class FocusDataViewSet(viewsets.ReadOnlyModelViewSet):
     """
     현재 로그인한 유저의 FocusData 목록 조회 (GET /focus/)
     """
+    queryset = FocusData.objects.all()
     serializer_class = FocusDataSerializer
     permission_classes = [IsAuthenticated]
+    filter_backends  = [DjangoFilterBackend]
+    filterset_fields = ['date', 'session']
 
     def get_queryset(self):
         # related_name='focus_data' 로 정의했으므로 아래와 같이도 가능
         return self.request.user.focus_data.order_by('-timestamp')
+
+

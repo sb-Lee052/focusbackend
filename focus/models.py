@@ -1,7 +1,20 @@
 # focus/models.py
+
 from django.db import models
 from django.contrib.auth.models import User
 from django.conf import settings
+
+
+
+class StudySession(models.Model):
+    user     = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    place    = models.CharField(max_length=50)
+    start_at = models.DateTimeField()
+    end_at   = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.user} @ {self.place} ({self.start_at} – {self.end_at or '…'})"
+
 
 class FocusData(models.Model):
     user = models.ForeignKey(
@@ -30,6 +43,7 @@ class FocusData(models.Model):
     #     default=75,
     #     help_text="심박수 (bpm)"
     # )
+    session = models.ForeignKey(StudySession, on_delete=models.CASCADE, null=True, blank=True)
 
     def __str__(self):
         return f"FocusData {self.timestamp}"
@@ -65,6 +79,7 @@ class RawData(models.Model):
     #     default=75,
     #     help_text="심박수 (bpm)"
     # )
+    session = models.ForeignKey(StudySession, on_delete=models.CASCADE, null=True, blank=True)
 
     def __str__(self):
         return f"{self.focus_value} @ {self.timestamp}"

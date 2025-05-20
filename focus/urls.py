@@ -4,6 +4,8 @@ from rest_framework.routers import DefaultRouter
 from . import views
 from .views import FocusScoreAPIView
 from .views import upload_heartbeat_data#, upload_pressure_data
+from django.urls import path
+from focus.views import start_study, end_study
 
 
 router = DefaultRouter()
@@ -36,4 +38,9 @@ urlpatterns = [
     path('timeline/',      views.focus_timeline,            name='focus-timeline'),
     # 분 단위 깜빡임 요약
     path('blink_summary/', views.blink_summary_by_minute,   name='blink-summary'),
+    # 공부 시작
+    path('study-sessions/start/', start_study, name='start_study'),
+    # 공부 종료
+    path('study-sessions/end/',   end_study,   name='end_study'),
 ]
+

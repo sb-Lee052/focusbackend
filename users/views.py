@@ -1,13 +1,16 @@
+
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework import status
 from rest_framework.response import Response
 from django.views.decorators.csrf import csrf_exempt
 from focus.serializers import FocusDataSerializer
 import json
-
+from rest_framework.authtoken.models import Token
+from rest_framework.authentication import TokenAuthentication
+from users.authentication import SlidingTokenAuthentication
 
 @csrf_exempt
 @api_view(['POST'])
@@ -41,13 +44,18 @@ def login_view(request):
     user = authenticate(request, username=username, password=password)
 
     if user is not None:
-        return Response({'message': '로그인 성공!'})
+        token, _ = Token.objects.get_or_create(user=user)
+        return Response({
+            'message': '로그인 성공!',
+            'token': token.key
+        }, status=status.HTTP_200_OK)
     else:
         return Response({'error': '아이디 또는 비밀번호가 올바르지 않습니다.'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 
 @api_view(['GET'])
+@authentication_classes([SlidingTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def user_detail(request):
     user = request.user
@@ -61,3 +69,4 @@ def user_detail(request):
         'focus_data': focus_serializer.data
     }
     return Response(data, status=status.HTTP_200_OK)
+

@@ -14,9 +14,7 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
-from django.contrib import admin
-from django.urls import path
-from django.urls import path, include
+from focus.views import start_study, end_study
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework.authtoken.views import obtain_auth_token
@@ -28,5 +26,7 @@ urlpatterns = [
     path('users/', include('users.urls')),
     path('api-auth/', include('rest_framework.urls', namespace='rest_framework')),
     path('api/heartbeat/', upload_heartbeat_data),
-    path('api-token-auth/', obtain_auth_token)
+    path('api-token-auth/', obtain_auth_token),
+    path('study-sessions/start/', start_study, name='start_study'),
+    path('study-sessions/end/', end_study, name='end_study'),
 ]

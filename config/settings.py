@@ -120,9 +120,11 @@ CORS_ALLOWED_ORIGINS = [
   "http://localhost:3000",        # 개발 중 로컬
   "http://192.168.68.230:3000",     # 같은 LAN에서 접속할 때
 ]
+CORS_ALLOW_ALL_ORIGINS = True
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
+        'users.authentication.SlidingTokenAuthentication',
         'rest_framework.authentication.SessionAuthentication',
         'rest_framework.authentication.TokenAuthentication',
     ),
