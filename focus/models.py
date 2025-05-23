@@ -7,7 +7,11 @@ from django.conf import settings
 
 
 class StudySession(models.Model):
-    user     = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete = models.CASCADE,
+        related_name = 'study_sessions'
+        )
     place    = models.CharField(max_length=50)
     start_at = models.DateTimeField()
     end_at   = models.DateTimeField(null=True, blank=True)
@@ -22,6 +26,7 @@ class FocusData(models.Model):
         on_delete = models.CASCADE,
         related_name = 'focus_data'
                             )
+    session = models.ForeignKey(StudySession, on_delete=models.CASCADE, null=True, blank=True)
     timestamp = models.DateTimeField(auto_now_add=True)
     blink_count = models.IntegerField(
         default=0,
@@ -39,11 +44,11 @@ class FocusData(models.Model):
         default=True,
         help_text="사용자가 현재 자리에 있는지 여부"
     )
+    focus_score = models.FloatField(default=0.0)
     # heart_rate = models.IntegerField(
     #     default=75,
     #     help_text="심박수 (bpm)"
     # )
-    session = models.ForeignKey(StudySession, on_delete=models.CASCADE, null=True, blank=True)
 
     def __str__(self):
         return f"FocusData {self.timestamp}"
@@ -75,11 +80,8 @@ class RawData(models.Model):
         default=True,
         help_text="사용자가 자리에 있었는지 여부"
     )
-    # heart_rate = models.IntegerField(
-    #     default=75,
-    #     help_text="심박수 (bpm)"
-    # )
     session = models.ForeignKey(StudySession, on_delete=models.CASCADE, null=True, blank=True)
+    focus_score = models.FloatField(default=0.0)
 
     def __str__(self):
         return f"{self.focus_value} @ {self.timestamp}"

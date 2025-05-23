@@ -16,6 +16,7 @@ ALLOWED_HOSTS = ['*']
 # Application definition
 
 INSTALLED_APPS = [
+    'sslserver',
     'corsheaders',
     'users',
     'focus',
@@ -32,9 +33,11 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
+
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -119,6 +122,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CORS_ALLOWED_ORIGINS = [
   "http://localhost:3000",        # 개발 중 로컬
   "http://192.168.68.230:3000",     # 같은 LAN에서 접속할 때
+  "https://learningas.shop",
+  "https://www.learningas.shop",
 ]
 CORS_ALLOW_ALL_ORIGINS = True
 
@@ -126,7 +131,6 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'users.authentication.SlidingTokenAuthentication',
         'rest_framework.authentication.SessionAuthentication',
-        'rest_framework.authentication.TokenAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
@@ -136,5 +140,12 @@ REST_FRAMEWORK = {
 CSRF_TRUSTED_ORIGINS = [
     "http://52.64.14.111",
     "https://52.64.14.111",
+    "https://learningas.shop",
+    "https://www.learningas.shop",
 ]
 
+# HTTPS 리디렉션 및 쿠키 보안
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_SSL_REDIRECT       = True
+SESSION_COOKIE_SECURE     = True
+CSRF_COOKIE_SECURE        = True

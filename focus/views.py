@@ -1,3 +1,4 @@
+
 from .serializers import StudySessionSerializer
 from .models import StudySession
 from django_filters.rest_framework import DjangoFilterBackend
@@ -22,22 +23,28 @@ from .serializers import RawDataSerializer
 from .services import calc_focus_score
 
 from .models import Heartbeat, PressureEvent
-from .serializers import HeartbeatSerializer, PressureEventSerializer
 
 from django.views.decorators.csrf import csrf_exempt
-from rest_framework.authentication import TokenAuthentication
 
 
     # focus/views.py
-class StudySessionViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = StudySession.objects.all()
+class StudySessionViewSet(viewsets.ModelViewSet):
     serializer_class = StudySessionSerializer
-    filter_backends  = [DjangoFilterBackend]
-    filterset_fields = ['start_at__date']   # date 파라미터로 필터링
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['start_at__date']  # 모델 필드명이 start_time이라면 ['start_time__date']로 바꿔주세요
+
+    def get_queryset(self):
+        # 로그인 유저의 세션만 반환
+        return StudySession.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        # user 필드를 클라이언트가 보내지 않아도 request.user로 자동 설정
+        serializer.save(user=self.request.user)
+
+
 @csrf_exempt
 @api_view(['POST'])
-@authentication_classes([TokenAuthentication])
-@permission_classes([IsAuthenticated])
 def start_study(request):
     # 인증된 사용자(request.user) 가정
     place = request.POST.get('place') or request.data.get('place')
@@ -53,8 +60,6 @@ def start_study(request):
 
 @csrf_exempt
 @api_view(['POST'])
-@authentication_classes([TokenAuthentication])
-@permission_classes([IsAuthenticated])
 def end_study(request):
     session_id = request.POST.get('session_id') or request.data.get('session_id')
     try:
@@ -85,8 +90,6 @@ class RawDataViewSet(viewsets.ReadOnlyModelViewSet):
 
 # 2) raw_data 업로드
 @api_view(['POST'])
-@authentication_classes([])
-@permission_classes([IsAuthenticated])
 def upload_raw_data(request):
     created = 0
     for item in request.data or []:
@@ -112,7 +115,6 @@ def upload_raw_data(request):
 
 # 3) focus_data 업로드
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
 def upload_focus_data(request):
     data = request.data or {}
 
@@ -128,7 +130,6 @@ def upload_focus_data(request):
 
 
 @api_view(['POST'])
-@permission_classes([AllowAny])
 def upload_pressure_event(request):
     data = request.data
     timestamp = data.get('timestamp')
@@ -143,7 +144,6 @@ def upload_pressure_event(request):
 
 # 4) 날짜별 시간대 집중도 집계
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
 def focus_data_by_date(request):
     date_str = request.query_params.get('date')
     if not date_str:
@@ -171,7 +171,6 @@ def focus_data_by_date(request):
 
 # 5) 하루 전체 집중도 요약
 @api_view(['GET'])
-@permission_classes([AllowAny])
 def get_focus_summary(request):
     date_str = request.GET.get('date')
     if not date_str:
@@ -215,7 +214,6 @@ def get_focus_summary(request):
 
 # 6) 간단한 일일 요약 (RawData 기준)
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
 def daily_focus_summary(request):
     date_str = request.query_params.get('date')
     if not date_str:
@@ -262,7 +260,6 @@ def daily_focus_summary(request):
 
 # 7) 얼굴 감지 안 된 이벤트 저장
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
 def upload_face_lost_summary(request):
     events = request.data or []
     created = 0
@@ -313,7 +310,6 @@ class FocusScoreAPIView(APIView):
 
 # 9) 시간별 집중 타임라인
 @api_view(['GET'])
-@permission_classes([AllowAny])
 def focus_timeline(request):
     date_str = request.GET.get('date')
     if not date_str:
@@ -339,7 +335,6 @@ def focus_timeline(request):
 
 # 10) 분 단위 깜빡임 요약
 @api_view(['GET'])
-@permission_classes([AllowAny])
 def blink_summary_by_minute(request):
     date_str = request.GET.get('date')
     if not date_str:
@@ -372,8 +367,6 @@ def blink_summary_by_minute(request):
 @csrf_exempt
 
 @api_view(['POST'])
-@authentication_classes([TokenAuthentication])
-@permission_classes([IsAuthenticated])
 def upload_heartbeat_data(request):
     data = request.data
 
@@ -444,3 +437,21 @@ class FocusDataViewSet(viewsets.ReadOnlyModelViewSet):
         return self.request.user.focus_data.order_by('-timestamp')
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def all_summary_view(request):
+    user = request.user
+    data = FocusData.objects.filter(user=user).order_by('timestamp')
+
+    summary_by_date = {}
+    for item in data:
+        date_str = item.timestamp.strftime('%Y-%m-%d')
+        # 해당 날짜의 가장 마지막 focus_score만 저장
+        summary_by_date[date_str] = item.focus_score
+
+    result = [
+        {"date": date, "focus_score": score}
+        for date, score in summary_by_date.items()
+    ]
+
+    return Response(result)

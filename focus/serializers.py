@@ -32,7 +32,9 @@ class FocusDataSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'timestamp']
 
 class StudySessionSerializer(serializers.ModelSerializer):
+    user = serializers.PrimaryKeyRelatedField(read_only=True)
+
     class Meta:
         model = StudySession
-        fields = ['id', 'place', 'start_at', 'end_at']
-        read_only_fields = ['id', 'start_at', 'end_at']
+        fields = ['id', 'user', 'start_at', 'end_at']
+        read_only_fields = ['start_at', 'end_at']

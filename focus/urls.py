@@ -42,5 +42,7 @@ urlpatterns = [
     path('study-sessions/start/', start_study, name='start_study'),
     # 공부 종료
     path('study-sessions/end/',   end_study,   name='end_study'),
+
+    path("all-summary/", views.all_summary_view),
 ]
 
