@@ -340,6 +340,7 @@ def focus_timeline(request):
         timestamp = item.timestamp.strftime('%H:%M:%S')
         timeline.append({
             "time": timestamp,
+            "focus_score": round(item.focus_score, 2),  # 추가
             "absent": 10 if not item.present else 0,
             "zoneout": round(item.zoning_out_time, 2)
         })
