@@ -137,7 +137,7 @@ REST_FRAMEWORK = {
 }
 # settings.py
 CSRF_TRUSTED_ORIGINS = [
-    "http://52.64.14.111",
+    #"http://52.64.14.111",
     "https://52.64.14.111",
     "https://learningas.shop",
     "https://www.learningas.shop",
