@@ -1,4 +1,4 @@
-# focus/ws_consumers.py
+# focus/ws_consumers.py 웹소켓관련 코드 사용안하면 삭제
 from channels.generic.websocket import AsyncWebsocketConsumer
 import json
 

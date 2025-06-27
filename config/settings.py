@@ -16,7 +16,7 @@ ALLOWED_HOSTS = ['*']
 # Application definition
 
 INSTALLED_APPS = [
-    'channels',
+#    'channels',
     'sslserver',
     'corsheaders',
     'users',
@@ -122,6 +122,7 @@ CORS_ALLOWED_ORIGINS = [
   "https://learningas.shop",
   "https://www.learningas.shop",
   "https://joljak-frontend.vercel.app",
+  "https://joljak-git-main-0803s-projects.vercel.app/",
 ]
 # (또는 개발용으로 임시 모든 오리진 허용)
 # CORS_ALLOW_ALL_ORIGINS = True
