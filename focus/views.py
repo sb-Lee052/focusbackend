@@ -25,6 +25,8 @@ from .services import calc_focus_score
 from .models       import SensorData
 from .serializers  import SensorDataSerializer
 
+
+
 from django.views.decorators.csrf import csrf_exempt
 
 def _get_current_session(user):
@@ -142,6 +144,7 @@ def upload_focus_data(request):
         present=data.get('present', True),
         focus_score=score  # ← 추가
     )
+
 
  #   return Response({"message": "1 focus record saved.", "focus_score": score})
 
@@ -515,3 +518,26 @@ def focus_timeline_detail(request):
         })
 
     return JsonResponse({"timeline": timeline})
+
+def focus_score_data(request):
+    user = request.user
+    date_str = request.GET.get('date')
+
+    if not date_str:
+        return Response({'error': '날짜가 필요합니다.'}, status=400)
+
+    focus_data = FocusData.objects.filter(
+        user=user,
+        timestamp__date=date_str
+    ).order_by('timestamp')
+
+    serializer = FocusDataSerializer(focus_data, many=True)
+    timeline = []
+
+    for item in serializer.data:
+        timeline.append({
+            'time': item['timestamp'][11:19],  # HH:MM:SS
+            'score': item['score']
+        })
+
+    return Response({'timeline': timeline})

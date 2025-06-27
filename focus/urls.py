@@ -8,6 +8,7 @@ from django.urls import path
 from focus.views import start_study, end_study
 from .views import trigger_rpi_measure
 from .views import focus_timeline_detail
+from .views import focus_score_data
 
 
 
@@ -48,5 +49,6 @@ urlpatterns = [
 
     path('focus/timeline-detail/', focus_timeline_detail),
 
+    path('focus/data/', focus_score_data, name='focus-data'),
 ]
 

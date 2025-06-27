@@ -26,7 +26,7 @@ class FocusDataSerializer(serializers.ModelSerializer):
     class Meta:
         model = FocusData
         # user는 자동으로 request.user 로 채우고, timestamp는 읽기 전용으로 설정
-        fields = ['id', 'blink_count', 'eyes_closed_time', 'zoning_out_time', 'present', 'timestamp','session']
+        fields = ['id', 'blink_count', 'eyes_closed_time', 'zoning_out_time', 'present', 'timestamp','session','focus_score']
         read_only_fields = ['id','timestamp','session']
 
 class StudySessionSerializer(serializers.ModelSerializer):
