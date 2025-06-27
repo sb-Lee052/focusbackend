@@ -1,4 +1,5 @@
 
+import requests
 from .serializers import StudySessionSerializer
 from .models import StudySession
 from django_filters.rest_framework import DjangoFilterBackend
@@ -18,14 +19,17 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.http import JsonResponse
 
-from .models import RawData, FocusData, FaceLostEvent
-from .serializers import RawDataSerializer
+from .models import FocusData, FaceLostEvent
 from .services import calc_focus_score
 
-from .models import Heartbeat, PressureEvent
+from .models       import SensorData
+from .serializers  import SensorDataSerializer
 
 from django.views.decorators.csrf import csrf_exempt
 
+def _get_current_session(user):
+    # 아직 종료(end_at=None)되지 않은 가장 최근의 세션 하나를 가져옵니다.
+    return StudySession.objects.filter(user=user, end_at__isnull=True).first()
 
     # focus/views.py
 class StudySessionViewSet(viewsets.ModelViewSet):
@@ -54,72 +58,66 @@ def start_study(request):
         start_at=timezone.now()
     )
     return JsonResponse({
-        "session_id": session.id,
+        "session": session.id,
         "start_at": session.start_at.isoformat()
     })
 
 @csrf_exempt
 @api_view(['POST'])
 def end_study(request):
-    session_id = request.POST.get('session_id') or request.data.get('session_id')
-    try:
-        session = StudySession.objects.get(id=session_id, user=request.user)
-        session.end_at = timezone.now()
-        session.save()
-        duration = (session.end_at - session.start_at).total_seconds()
-        return JsonResponse({
-            "session_id": session.id,
-            "start_at": session.start_at.isoformat(),
-            "end_at": session.end_at.isoformat(),
-            "duration": duration
-        })
-    except StudySession.DoesNotExist:
-        return JsonResponse({"error": "Invalid session_id"}, status=400)
-
-
-
-# 1) RawData 조회용 ViewSet
-class RawDataViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = RawData.objects.order_by('timestamp')
-    serializer_class = RawDataSerializer
-    permission_classes = [IsAuthenticated]
-
-    # def get_queryset(self):
-    #     return self.request.user.raw_data.order_by('timestamp')
-
-
-# 2) raw_data 업로드
-@api_view(['POST'])
-def upload_raw_data(request):
-    created = 0
-    for item in request.data or []:
-        ts = item.get('timestamp')
-        dt = parse_datetime(ts)
-        if not dt:
-            continue
-        if timezone.is_naive(dt):
-            dt = timezone.make_aware(dt, timezone.get_current_timezone())
-
-        RawData.objects.create(
-            user=request.user,
-            blink_count=item.get('blink_count', 0),
-            eyes_closed_time=item.get('eyes_closed_time', 0.0),
-            zoning_out_time=item.get('zoning_out_time', 0.0),
-            present=item.get('present', True),
-            heart_rate=item.get('heart_rate', 75),
+    session = _get_current_session(request.user)
+    if not session:
+        return Response(
+            {"error": "활성화된 세션이 없습니다."},
+            status=status.HTTP_400_BAD_REQUEST
         )
-        created += 1
+    session.end_at = timezone.now()
+    session.save()
 
-    return Response({"message": f"{created} raw records saved."}, status=status.HTTP_201_CREATED)
 
+    return Response({"message": "세션이 종료되었습니다."}, status=status.HTTP_200_OK)
 
 # 3) focus_data 업로드
 @api_view(['POST'])
 def upload_focus_data(request):
     data = request.data or {}
 
+    # 1) 클라이언트가 보낸 session ID 로 세션 조회 + 예외 처리
+    session = _get_current_session(request.user)
+    if not session:
+        return Response(
+        {"error": "먼저 /study-sessions/start/ 로 세션을 시작하세요."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # 2) 클라이언트가 보낸 time 파싱, 없으면 현재 시각 사용 (첫 번째 코드)
+    # 1) time → datetime 파싱
+    ts = data.get('time')
+    if not ts:
+        return Response({"error": "time 필드가 필요합니다."},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+    dt = parse_datetime(ts)
+    if not dt:
+        return Response(
+            {"error": "time 형식이 유효하지 않습니다. ISO-8601 형식으로 보내주세요."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # 2) timezone 처리
+    # parse_datetime 로 받은 dt가 naive 라면 현재타임존으로 aware 처리
+    if timezone.is_naive(dt):
+        dt = timezone.make_aware(dt, timezone.get_current_timezone())
+
+    # MySQL + USE_TZ=False 환경에서는 반드시 naive datetime 으로 만들어야 함
+    if not settings.USE_TZ:
+        dt = make_naive(dt, timezone.get_current_timezone())
+
+    # 3) FocusData 생성
     FocusData.objects.create(
         user=request.user,
+        session=session,
+        timestamp=dt,
         blink_count=data.get('blink_count', 0),
         eyes_closed_time=data.get('eyes_closed_time', 0.0),
         zoning_out_time=data.get('zoning_out_time', 0.0),
@@ -129,17 +127,17 @@ def upload_focus_data(request):
     return Response({"message": "1 focus record saved."}, status=status.HTTP_201_CREATED)
 
 
-@api_view(['POST'])
-def upload_pressure_event(request):
-    data = request.data
-    timestamp = data.get('timestamp')
-    is_pressed = data.get('is_pressed')
-
-    if not timestamp or is_pressed is None:
-        return Response({"error": "timestamp and is_pressed are required"}, status=400)
-
-    PressureEvent.objects.create(timestamp=timestamp, is_pressed=is_pressed)
-    return Response({"message": "pressure event saved"}, status=201)
+# @api_view(['POST'])
+# def upload_pressure_event(request):
+#     data = request.data
+#     timestamp = data.get('timestamp')
+#     is_pressed = data.get('is_pressed')
+#
+#     if not timestamp or is_pressed is None:
+#         return Response({"error": "timestamp and is_pressed are required"}, status=400)
+#
+#     PressureEvent.objects.create(timestamp=timestamp, is_pressed=is_pressed)
+#     return Response({"message": "pressure event saved"}, status=201)
 
 
 # 4) 날짜별 시간대 집중도 집계
@@ -154,7 +152,7 @@ def focus_data_by_date(request):
     except ValueError:
         return Response({'error': 'Invalid date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
 
-    qs = RawData.objects.filter(timestamp__date=date_obj)
+    qs = FocusData.objects.filter(timestamp__date=date_obj)
     hourly = (
         qs.annotate(hour=TruncHour('timestamp'))
           .values('hour')
@@ -222,7 +220,7 @@ def daily_focus_summary(request):
     date_obj = parse_date(date_str)
     start = datetime.combine(date_obj, time.min)
     end = datetime.combine(date_obj, time.max)
-    qs = RawData.objects.filter(timestamp__range=(start, end))
+    qs = FocusData.objects.filter(timestamp__date=(start, end))
 
     total_count = qs.count()
     present_count = qs.filter(present=True).count()
@@ -370,13 +368,21 @@ def blink_summary_by_minute(request):
 def upload_heartbeat_data(request):
     data = request.data
 
+    # 1) 활성 세션 조회
+    session = _get_current_session(request.user)
+    if not session:
+        return Response(
+            {"error": "먼저 /study-sessions/start/ 로 세션을 시작하세요."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
     # 1) time → datetime 파싱
-    ts_str = data.get('time')
-    if not ts_str:
+    ts = data.get('time')
+    if not ts:
         return Response({"error": "time 필드가 필요합니다."},
                         status=status.HTTP_400_BAD_REQUEST)
 
-    dt = parse_datetime(ts_str)
+    dt = parse_datetime(ts)
     if not dt:
         return Response(
             {"error": "time 형식이 유효하지 않습니다. ISO-8601 형식으로 보내주세요."},
@@ -394,32 +400,26 @@ def upload_heartbeat_data(request):
 
     # 3) heart_rate → bpm
     hr = data.get('heart_rate')
-    if hr is None:
-        return Response({"error": "heart_rate 필드가 필요합니다."},
-                        status=status.HTTP_400_BAD_REQUEST)
-    try:
-        bpm_value = int(round(float(hr)))
-    except (TypeError, ValueError):
-        return Response({"error": "heart_rate는 숫자여야 합니다."},
-                        status=status.HTTP_400_BAD_REQUEST)
-
-    # 4) pressure → is_pressed
     pres = data.get('pressure')
-    if pres is None:
-        return Response({"error": "pressure 필드가 필요합니다."},
-                        status=status.HTTP_400_BAD_REQUEST)
     try:
-        pressure_value = float(pres)
+        hr_val   = int(hr) if hr is not None else None
+        pres_val = float(pres) if pres is not None else None
+    except ValueError:
+        return Response(
+            {"error": "heart_rate와 pressure는 숫자여야 합니다."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
-    except (TypeError, ValueError):
-        return Response({"error": "pressure는 숫자여야 합니다."},
-                        status=status.HTTP_400_BAD_REQUEST)
+    # 6) 레코드 생성 (session 자동 연결)
+    SensorData.objects.create(
+        user=request.user,
+        session=session,  # ← 여기에 session 추가
+        timestamp=dt,
+        heart_rate=hr_val,
+        pressure=pres_val
+    )
 
-    # 5) 저장
-    Heartbeat.objects.create(user=request.user, timestamp=dt, bpm=bpm_value)
-    PressureEvent.objects.create(user=request.user, timestamp=dt, pressure_value=pressure_value)
-
-    return Response({"message": "heartbeat 및 pressure 저장 완료"},
+    return Response({"message": "SensorData 저장 완료"},
                     status=status.HTTP_201_CREATED)
 
 class FocusDataViewSet(viewsets.ReadOnlyModelViewSet):
@@ -455,3 +455,13 @@ def all_summary_view(request):
     ]
 
     return Response(result)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def trigger_rpi_measure(request):
+    try:
+        flask_url = "http://라즈베리파이_IP:5000/start-measure"  # 실제 Pi IP로 수정
+        res = requests.post(flask_url, timeout=5)
+        return Response({"msg": "측정 요청 전송됨", "flask_response": res.json()})
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)

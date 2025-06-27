@@ -16,6 +16,7 @@ ALLOWED_HOSTS = ['*']
 # Application definition
 
 INSTALLED_APPS = [
+    'channels',
     'sslserver',
     'corsheaders',
     'users',
@@ -60,7 +61,6 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'config.wsgi.application'
 
 
 # Database
@@ -108,7 +108,6 @@ USE_I18N = True
 
 USE_TZ = False
 
-
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
@@ -120,12 +119,12 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CORS_ALLOWED_ORIGINS = [
-  "http://localhost:3000",        # 개발 중 로컬
-  "http://192.168.68.230:3000",     # 같은 LAN에서 접속할 때
   "https://learningas.shop",
   "https://www.learningas.shop",
+  "https://joljak-frontend.vercel.app",
 ]
-CORS_ALLOW_ALL_ORIGINS = True
+# (또는 개발용으로 임시 모든 오리진 허용)
+# CORS_ALLOW_ALL_ORIGINS = True
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
@@ -143,6 +142,7 @@ CSRF_TRUSTED_ORIGINS = [
     "https://learningas.shop",
     "https://www.learningas.shop",
 ]
+
 
 # HTTPS 리디렉션 및 쿠키 보안
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')

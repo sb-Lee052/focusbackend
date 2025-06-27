@@ -3,23 +3,20 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
 from .views import FocusScoreAPIView
-from .views import upload_heartbeat_data#, upload_pressure_data
+from .views import upload_heartbeat_data # upload_pressure_data
 from django.urls import path
 from focus.views import start_study, end_study
+from .views import trigger_rpi_measure
 
 
 router = DefaultRouter()
-router.register(r'raw', views.RawDataViewSet, basename='raw')
 router.register(r'focus', views.FocusDataViewSet, basename='focus')
+
 urlpatterns = [
     # ViewSet 라우팅
     path('', include(router.urls)),
-
-    # RawData 업로드
-    path('upload/raw/',    views.upload_raw_data,           name='upload-raw-data'),
     # FocusData 업로드
     path('upload/',        views.upload_focus_data,         name='upload-focus-data'),
-
     # 심박+압력 통합 업로드
     path('upload/heartbeat/', upload_heartbeat_data,        name='upload-heartbeat'),
 
@@ -44,5 +41,8 @@ urlpatterns = [
     path('study-sessions/end/',   end_study,   name='end_study'),
 
     path("all-summary/", views.all_summary_view),
+    # 웹소켓
+    path('trigger-rpi/', trigger_rpi_measure),
+
 ]
 
