@@ -530,7 +530,7 @@ def focus_score_data(request):
     for item in serializer.data:
         timeline.append({
             'time': item['timestamp'][11:19],  # HH:MM:SS
-            'score': item['score']
+            'score': item['focus_score']
         })
 
     return Response({'timeline': timeline})
