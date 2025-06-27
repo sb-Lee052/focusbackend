@@ -116,15 +116,7 @@ def upload_focus_data(request):
         dt = make_naive(dt, timezone.get_current_timezone())
 
     # 3) FocusData 생성
-    FocusData.objects.create(
-        user=request.user,
-        session=session,
-        timestamp=dt,
-        blink_count=data.get('blink_count', 0),
-        eyes_closed_time=data.get('eyes_closed_time', 0.0),
-        zoning_out_time=data.get('zoning_out_time', 0.0),
-        present=data.get('present', True),
-    )
+
     score = calc_focus_score(
         blink_count=data.get('blink_count', 0),
         eyes_closed_time=data.get('eyes_closed_time', 0.0),
