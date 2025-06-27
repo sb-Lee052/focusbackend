@@ -123,6 +123,27 @@ def upload_focus_data(request):
         zoning_out_time=data.get('zoning_out_time', 0.0),
         present=data.get('present', True),
     )
+    score = calc_focus_score(
+        blink_count=data.get('blink_count', 0),
+        eyes_closed_time=data.get('eyes_closed_time', 0.0),
+        zoning_out_time=data.get('zoning_out_time', 0.0),
+        present_ratio=1.0 if data.get('present', True) else 0.0,
+        heart_rate=75,
+        total_duration_sec=10
+    )
+
+    FocusData.objects.create(
+        user=request.user,
+        session=session,
+        timestamp=dt,
+        blink_count=data.get('blink_count', 0),
+        eyes_closed_time=data.get('eyes_closed_time', 0.0),
+        zoning_out_time=data.get('zoning_out_time', 0.0),
+        present=data.get('present', True),
+        focus_score=score  # ← 추가
+    )
+
+ #   return Response({"message": "1 focus record saved.", "focus_score": score})
 
     return Response({"message": "1 focus record saved."}, status=status.HTTP_201_CREATED)
 
@@ -465,3 +486,32 @@ def trigger_rpi_measure(request):
         return Response({"msg": "측정 요청 전송됨", "flask_response": res.json()})
     except Exception as e:
         return Response({"error": str(e)}, status=500)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def focus_timeline_detail(request):
+    date_str = request.GET.get('date')
+    if not date_str:
+        return JsonResponse({'error': 'Missing date'}, status=400)
+
+    date = parse_date(date_str)
+    start = datetime.combine(date, time.min)
+    end = datetime.combine(date, time.max)
+
+    data = FocusData.objects.filter(
+        user=request.user,
+        timestamp__range=(start, end)
+    ).order_by('timestamp')
+
+    timeline = []
+    for item in data:
+        t = item.timestamp.strftime('%H:%M:%S')
+        timeline.append({
+            'time': t,
+            'focus_score': round(item.focus_score, 2),
+            'absent': 10 if not item.present else 0,
+            'zoneout': round(item.zoning_out_time, 2)
+        })
+
+    return JsonResponse({"timeline": timeline})

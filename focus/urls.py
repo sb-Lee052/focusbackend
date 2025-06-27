@@ -7,6 +7,8 @@ from .views import upload_heartbeat_data # upload_pressure_data
 from django.urls import path
 from focus.views import start_study, end_study
 from .views import trigger_rpi_measure
+from .views import focus_timeline_detail
+
 
 
 router = DefaultRouter()
@@ -43,6 +45,8 @@ urlpatterns = [
     path("all-summary/", views.all_summary_view),
     # 웹소켓
     path('trigger-rpi/', trigger_rpi_measure),
+
+    path('focus/timeline-detail/', focus_timeline_detail),
 
 ]
 
