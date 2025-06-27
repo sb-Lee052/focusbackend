@@ -447,7 +447,7 @@ class FocusDataViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = FocusDataSerializer
     permission_classes = [IsAuthenticated]
     filter_backends  = [DjangoFilterBackend]
-    filterset_fields = ['date', 'session']
+    filterset_fields = ['session'] #date 제거함 : 모델에 없는 필드임으로 삭제
 
     def get_queryset(self):
         # related_name='focus_data' 로 정의했으므로 아래와 같이도 가능
