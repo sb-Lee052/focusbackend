@@ -47,8 +47,8 @@ urlpatterns = [
     # 웹소켓
     path('trigger-rpi/', trigger_rpi_measure),
 
-    path('focus/timeline-detail/', focus_timeline_detail),
+    path('timeline-detail/', focus_timeline_detail, name='focus-timeline-detail'),
 
-    path('focus/data/', focus_score_data, name='focus-data'),
+    path('data-detail/', focus_score_data, name='focus-data-detail'),
 ]
 
