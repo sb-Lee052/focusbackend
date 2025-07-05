@@ -26,7 +26,7 @@ class FocusData(models.Model):
         on_delete = models.CASCADE,
         related_name = 'focus_data'
                             )
-
+    score = models.IntegerField(default=0.0)
     session = models.ForeignKey(StudySession, on_delete=models.CASCADE, null=True, blank=True,
         related_name="focus_data")
     timestamp = models.DateTimeField()

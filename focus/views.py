@@ -1,4 +1,7 @@
 
+#from .services import schedule_alerts_for_user
+from django.db.models import Avg, Count
+from django.views.decorators.cache import cache_page
 import requests
 from .serializers import StudySessionSerializer
 from .models import StudySession
@@ -137,6 +140,10 @@ def upload_focus_data(request):
         focus_score=score  # ← 추가
     )
 
+    # …FocusData 저장 로직 후…
+    present_ok = all(item.get('present', True) for item in serializer.validated_data)
+    zoning_out = any(item.get('zoning_out_time', 0) > 0 for item in serializer.validated_data)
+    schedule_alerts_for_user(request.user.id, present=present_ok, zoning_out=zoning_out)
 
  #   return Response({"message": "1 focus record saved.", "focus_score": score})
 
@@ -550,3 +557,63 @@ def focus_score_data(request):
         })
 
     return Response({'timeline': timeline})
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+@cache_page(60 * 5)  # 5분간 캐시
+def best_hours(request):
+    user = request.user
+
+    time_stats = (
+        FocusData.objects
+        .filter(user=user)
+        .annotate(hour=TruncHour('timestamp'))
+        .values('hour')
+        .annotate(
+            avg_score=Avg('focus_score'),
+            count=Count('id')
+        )
+        .order_by('-avg_score')[:5]
+    )
+
+    result = [
+        {
+            'hour': item['hour'].strftime('%Y-%m-%d %H:%M:%S'),
+            'avg_score': round(item['avg_score'], 2),
+            'count': item['count'],
+        }
+        for item in time_stats
+    ]
+
+    return Response({'best_hours': result})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+@cache_page(60 * 5)
+def best_places(request):
+    user = request.user
+
+    # 상위 1개만 가져오도록 슬라이스를 1로 변경
+    place_stats = (
+        StudySession.objects
+        .filter(user=user, focus_data__isnull=False)
+        .values('place')
+        .annotate(
+            avg_score=Avg('focus_data__focus_score'),
+            count=Count('focus_data')
+        )
+        .order_by('-avg_score')[:1]
+    )
+
+    if place_stats:
+        item = place_stats[0]
+        result = {
+            'place': item['place'],
+            'avg_score': round(item['avg_score'], 2),
+            'count': item['count'],
+        }
+    else:
+        result = {}
+
+    return Response({'best_place': result})

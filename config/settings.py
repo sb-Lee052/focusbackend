@@ -16,7 +16,6 @@ ALLOWED_HOSTS = ['*']
 # Application definition
 
 INSTALLED_APPS = [
-#    'channels',
     'sslserver',
     'corsheaders',
     'users',
@@ -147,6 +146,19 @@ CSRF_TRUSTED_ORIGINS = [
 
 # HTTPS 리디렉션 및 쿠키 보안
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-SECURE_SSL_REDIRECT       = True
+SECURE_SSL_REDIRECT       = False
 SESSION_COOKIE_SECURE     = True
 CSRF_COOKIE_SECURE        = True
+
+
+#celery 알림구현 추가
+# CELERY_BROKER_URL = 'redis://localhost:6379/0'
+# CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+#
+# from celery.schedules import crontab
+# CELERY_BEAT_SCHEDULE = {
+#     'alert_face_or_zoneout_every_minute': {
+#         'task': 'focus.tasks.alert_face_and_zoneout',
+#         'schedule': crontab(minute='*'),
+#     },
+# }

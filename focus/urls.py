@@ -50,5 +50,9 @@ urlpatterns = [
     path('timeline-detail/', focus_timeline_detail, name='focus-timeline-detail'),
 
     path('data-detail/', focus_score_data, name='focus-data-detail'),
+    #집중도 좋은 시간대 5개(ex.11시,12시,14시,20시,21시)
+    path('best-hours/', views.best_hours, name='best_hours'),
+    #가장 집중도 좋은 장소
+    path('best-places/', views.best_places, name='best_places'),
 ]
 
