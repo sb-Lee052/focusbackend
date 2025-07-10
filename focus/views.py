@@ -529,25 +529,32 @@ def focus_timeline_detail(request):
 
     return JsonResponse({"timeline": timeline})
 
+@api_view(['GET'])
 def focus_score_data(request):
     user = request.user
     date_str = request.GET.get('date')
-
     if not date_str:
         return Response({'error': '날짜가 필요합니다.'}, status=400)
 
-    focus_data = FocusData.objects.filter(
+    # 1) 문자열을 date 객체로 파싱
+    try:
+        query_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+    except ValueError:
+        return Response({'error': '날짜 형식은 YYYY-MM-DD 이어야 합니다.'}, status=400)
+
+    # 2) DB에서 date 필터
+    focus_qs = FocusData.objects.filter(
         user=user,
-        timestamp__date=date_str
+        timestamp__date=query_date
     ).order_by('timestamp')
 
-    serializer = FocusDataSerializer(focus_data, many=True)
+    # 3) 인스턴스 기준으로 로컬타임+문자열 포맷
     timeline = []
-
-    for item in serializer.data:
+    for fd in focus_qs:
+        local_ts = timezone.localtime(fd.timestamp)
         timeline.append({
-            'time': item['timestamp'][11:19],  # HH:MM:SS
-            'score': item['focus_score']
+            'time': local_ts.strftime('%H:%M:%S'),
+            'score': fd.focus_score
         })
 
     return Response({'timeline': timeline})
