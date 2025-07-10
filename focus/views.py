@@ -457,21 +457,17 @@ class FocusDataViewSet(viewsets.ReadOnlyModelViewSet):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@api_view(['GET'])
 def all_summary_view(request):
-    user = request.user
-    data = FocusData.objects.filter(user=user).order_by('timestamp')
-
+    data = FocusData.objects.filter(user=request.user).order_by('-timestamp')
     summary_by_date = {}
     for item in data:
         date_str = item.timestamp.strftime('%Y-%m-%d')
-        # 해당 날짜의 가장 마지막 focus_score만 저장
-        summary_by_date[date_str] = item.focus_score
-
+        summary_by_date.setdefault(date_str, item.focus_score)
     result = [
         {"date": date, "focus_score": score}
         for date, score in summary_by_date.items()
     ]
-
     return Response(result)
 
 @api_view(['POST'])
