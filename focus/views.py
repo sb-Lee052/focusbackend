@@ -140,12 +140,6 @@ def upload_focus_data(request):
         focus_score=score  # ← 추가
     )
 
-    # …FocusData 저장 로직 후…
-    present_ok = all(item.get('present', True) for item in serializer.validated_data)
-    zoning_out = any(item.get('zoning_out_time', 0) > 0 for item in serializer.validated_data)
-    schedule_alerts_for_user(request.user.id, present=present_ok, zoning_out=zoning_out)
-
- #   return Response({"message": "1 focus record saved.", "focus_score": score})
 
     return Response({"message": "1 focus record saved."}, status=status.HTTP_201_CREATED)
 
