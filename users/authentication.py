@@ -5,7 +5,7 @@ from rest_framework.authentication import TokenAuthentication
 from rest_framework import exceptions
 from .models import ExpiringToken
 
-EXPIRE_MINUTES = 10
+EXPIRE_MINUTES = 120
 
 class SlidingTokenAuthentication(TokenAuthentication):
     def authenticate_credentials(self, key):
