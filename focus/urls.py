@@ -5,7 +5,7 @@ from . import views
 from .views import FocusScoreAPIView
 from .views import upload_heartbeat_data # upload_pressure_data
 from django.urls import path
-from focus.views import start_study, end_study
+from focus.views import start_study, end_study, all_summary_view
 from .views import trigger_rpi_measure
 from .views import focus_timeline_detail
 from .views import focus_score_data
@@ -43,7 +43,7 @@ urlpatterns = [
     # 공부 종료
     path('study-sessions/end/',   end_study,   name='end_study'),
 
-    path("all-summary/", views.all_summary_view),
+    path("all-summary/", all_summary_view, name='all-summary'),
     # 웹소켓
     path('trigger-rpi/', trigger_rpi_measure),
 

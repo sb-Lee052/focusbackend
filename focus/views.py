@@ -457,7 +457,6 @@ class FocusDataViewSet(viewsets.ReadOnlyModelViewSet):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-@api_view(['GET'])
 def all_summary_view(request):
     data = FocusData.objects.filter(user=request.user).order_by('-timestamp')
     summary_by_date = {}
