@@ -555,9 +555,9 @@ def focus_score_data(request):
 
     return Response({'timeline': timeline})
 
+@cache_page(60 * 5)  # 5분간 캐시
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-@cache_page(60 * 5)  # 5분간 캐시
 def best_hours(request):
     user = request.user
 
@@ -585,9 +585,9 @@ def best_hours(request):
     return Response({'best_hours': result})
 
 
+@cache_page(60 * 5)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-@cache_page(60 * 5)
 def best_places(request):
     user = request.user
 
