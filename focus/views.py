@@ -550,7 +550,7 @@ def focus_score_data(request):
         local_ts = timezone.localtime(fd.timestamp)
         timeline.append({
             'time': local_ts.strftime('%H:%M:%S'),
-            'score': fd.focus_score
+            'focus_score': fd.focus_score
         })
 
     return Response({'timeline': timeline})
