@@ -1,4 +1,5 @@
 
+from collections import defaultdict
 from django.db.models import Avg, Count
 from django.views.decorators.cache import cache_page
 import requests
@@ -613,54 +614,55 @@ def best_places(request):
     return Response({'best_place': result})
 
 
+THRESHOLD_SCORE = 60
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def user_average_focus_duration(request):
+def user_average_session_focus_duration(request):
     """
-    GET /focus/average-duration/?threshold=<optional>
-    - threshold: 비집중 기준 점수 (기본 60)
-    반환: 전체 세션에서 측정된 모든 집중 구간의 평균 지속시간
+    GET /focus/average-session-duration/?threshold=<optional>
+    → 사용자별 세션 단위 평균 집중 유지시간 반환
     """
-    THRESHOLD_SCORE = 60
     threshold = float(request.query_params.get('threshold', THRESHOLD_SCORE))
-
-    # 로그인 유저의 모든 FocusData를 session별 순으로 가져옴
     qs = FocusData.objects.filter(user=request.user).order_by('session', 'timestamp')
 
-    durations = []
-    current_start = None
-    last_time = None
-    prev_session = None
+    # 세션별 총 집중 시간(초)을 누적할 dict
+    session_totals = defaultdict(float)
+    # 각 세션별 상태 추적용
+    current_start = {}
+    last_time = {}
 
     for fd in qs:
-        # 세션이 바뀌면 상태 초기화
-        if prev_session != fd.session_id:
-            current_start = None
-            last_time = None
-            prev_session = fd.session_id
+        sid = fd.session_id
+        # 새 세션이면 초기화
+        if sid not in current_start:
+            current_start[sid] = None
+            last_time[sid]    = None
 
-        is_focused = fd.focus_score > threshold
-        if is_focused:
-            if current_start is None:
-                current_start = fd.timestamp
-            last_time = fd.timestamp
+        focused = fd.focus_score > threshold
+        if focused:
+            if current_start[sid] is None:
+                current_start[sid] = fd.timestamp
+            last_time[sid] = fd.timestamp
         else:
-            if current_start is not None:
-                durations.append((last_time - current_start).total_seconds())
-                current_start = None
+            if current_start[sid] is not None:
+                session_totals[sid] += (last_time[sid] - current_start[sid]).total_seconds()
+                current_start[sid] = None
 
-    # 마지막 구간 처리
-    if current_start is not None:
-        durations.append((last_time - current_start).total_seconds())
+    # 마지막 남은 구간 플러시
+    for sid, start in current_start.items():
+        if start is not None:
+            session_totals[sid] += (last_time[sid] - start).total_seconds()
 
-    # 평균 계산
-    count = len(durations)
-    avg_sec = sum(durations) / count if count else 0
-    avg_min = round(avg_sec / 60, 2)
+    # 세션별 총합 리스트
+    totals = list(session_totals.values())
+    session_count = len(totals)
+    avg_sec = sum(totals) / session_count if session_count else 0
+    avg_min = round(avg_sec / 60, 1)
 
     return Response({
-        'intervals_count': count,
-        'average_focused_sec': int(avg_sec),
-        'average_focused_min': avg_min,
+        'session_count': session_count,
+        'average_focused_sec_per_session': int(avg_sec),
+        'average_focused_min_per_session': avg_min,
         'threshold': threshold,
     })
