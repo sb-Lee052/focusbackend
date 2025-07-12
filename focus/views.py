@@ -1,5 +1,4 @@
 
-#from .services import schedule_alerts_for_user
 from django.db.models import Avg, Count
 from django.views.decorators.cache import cache_page
 import requests
@@ -26,7 +25,6 @@ from .models import FocusData, FaceLostEvent
 from .services import calc_focus_score
 
 from .models       import SensorData
-from .serializers  import SensorDataSerializer
 
 
 
@@ -613,3 +611,72 @@ def best_places(request):
         result = {}
 
     return Response({'best_place': result})
+
+
+THRESHOLD_SCORE = 60  # 0~100 스케일, 60 이하를 비집중으로 간주
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def focus_durations(request):
+    """
+    GET /focus/durations/?session_id=<id>&threshold=<optional>
+    - session_id: 필수
+    - threshold: 비집중 기준 점수 (기본 60)
+    """
+    session_id = request.query_params.get('session_id')
+    if not session_id:
+        return Response({'error': 'session_id 파라미터가 필요합니다.'}, status=400)
+
+    try:
+        session = StudySession.objects.get(id=session_id, user=request.user)
+    except StudySession.DoesNotExist:
+        return Response({'error': '유효하지 않은 session_id'}, status=400)
+
+    threshold = float(request.query_params.get('threshold', THRESHOLD_SCORE))
+
+    # 해당 세션의 FocusData를 시간 순으로 가져옴
+    qs = FocusData.objects.filter(session=session).order_by('timestamp')
+
+    durations = []       # 각 집중 구간 지속시간(초) 리스트
+    current_start = None # 집중 구간 시작시각
+    last_time = None     # 마지막 집중 시각
+
+    for fd in qs:
+        is_focused = fd.focus_score > threshold
+        if is_focused:
+            if current_start is None:
+                current_start = fd.timestamp
+            last_time = fd.timestamp
+        else:
+            if current_start is not None:
+                span = (last_time - current_start).total_seconds()
+                durations.append(span)
+                current_start = None
+
+    # 마지막 집중 구간 체크
+    if current_start is not None:
+        durations.append((last_time - current_start).total_seconds())
+
+    total_sec = sum(durations)
+    longest_sec = max(durations) if durations else 0
+    avg_sec = (total / len(durations)) if durations else 0
+
+    # ▶ 분 단위로 변환 (소수점 둘째 자리까지)
+    total_min   = round(total_sec   / 60, 2)
+    longest_min = round(longest_sec / 60, 2)
+    avg_min     = round(avg_sec     / 60, 2)
+    intervals_min = [round(d/60, 2) for d in durations]
+
+    return Response({
+        'session_id': session_id,
+        'threshold': threshold,
+        'total_focused_sec': int(total_sec),
+        'longest_focused_sec': int(longest_sec),
+        'average_focused_sec': int(avg_sec),
+        'intervals_sec': [int(d) for d in durations],
+
+        'total_focused_min': total_min,
+        'longest_focused_min': longest_min,
+        'average_focused_min': avg_min,
+        'intervals_min': intervals_min,
+    })
