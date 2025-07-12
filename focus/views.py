@@ -1,8 +1,8 @@
 
-from collections import defaultdict
+from .models import SensorData
+from .serializers import SensorDataSerializer
 from django.db.models import Avg, Count
 from django.views.decorators.cache import cache_page
-import requests
 from .serializers import StudySessionSerializer
 from .models import StudySession
 from django_filters.rest_framework import DjangoFilterBackend
@@ -159,6 +159,12 @@ def upload_focus_data(request):
 # 4) 날짜별 시간대 집중도 집계
 @api_view(['GET'])
 def focus_data_by_date(request):
+    sensor_qs = SensorData.objects.filter(
+        user=request.user,
+        timestamp__date=date_obj
+    ).order_by('timestamp')
+    sensor_data = SensorDataSerializer(sensor_qs, many=True).data
+
     date_str = request.query_params.get('date')
     if not date_str:
         return Response({'error': 'date parameter required'}, status=status.HTTP_400_BAD_REQUEST)
@@ -180,7 +186,10 @@ def focus_data_by_date(request):
           )
           .order_by('hour')
     )
-    return Response({'date': date_str, 'hourly_stats': list(hourly)})
+    return Response({'date': date_str,
+                     'hourly_stats': list(hourly),
+                     'sensor_data': sensor_data,
+                     })
 
 
 # 5) 하루 전체 집중도 요약
@@ -468,17 +477,6 @@ def all_summary_view(request):
     ]
     return Response(result)
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def trigger_rpi_measure(request):
-    try:
-        flask_url = "http://라즈베리파이_IP:5000/start-measure"  # 실제 Pi IP로 수정
-        res = requests.post(flask_url, timeout=5)
-        return Response({"msg": "측정 요청 전송됨", "flask_response": res.json()})
-    except Exception as e:
-        return Response({"error": str(e)}, status=500)
-
-
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def focus_timeline_detail(request):
@@ -553,6 +551,10 @@ def focus_score_data(request):
 
     return Response({'timeline': timeline})
 
+
+
+#집중점수 높은 시간대(시간단위) 5개 리턴하는 함수
+
 @cache_page(60 * 5)  # 5분간 캐시
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -582,6 +584,8 @@ def best_hours(request):
 
     return Response({'best_hours': result})
 
+
+# 집중점수 높은 장소 리턴 함수
 
 @cache_page(60 * 5)
 @api_view(['GET'])
@@ -613,6 +617,8 @@ def best_places(request):
 
     return Response({'best_place': result})
 
+
+# 집중유지시간 함수
 
 THRESHOLD_SCORE = 60  # 디폴트 기준점수
 INTERVAL_SEC = 10     # 데이터 간격(초)
