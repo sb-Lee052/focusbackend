@@ -359,41 +359,38 @@ def focus_timeline(request):
 
     return JsonResponse({"timeline": timeline})
 
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def sensor_timeline(request):
+    """
+    GET /focus/sensor-timeline/?date=YYYY-MM-DD
+    Returns: {'timeline': [ {'time': 'HH:MM:SS', 'heart_rate': ..., 'pressure': ...}, ... ] }
+    """
     date_str = request.query_params.get('date')
     if not date_str:
         return Response({'error': 'date parameter required'}, status=400)
 
     # YYYY-MM-DD 파싱
-    try:
-        d = parse_date(date_str)
-    except:
-        return Response({'error': 'Invalid date format'}, status=400)
+    d = parse_date(date_str)
+    if not d:
+        return Response({'error': 'Invalid date format. Use YYYY-MM-DD.'}, status=400)
 
-    # 1) 로컬 타임존-aware한 하루 시작·끝 시각 만들기
-    tz = timezone.get_current_timezone()
-    day_start = timezone.make_aware(datetime.combine(d, time.min), tz)
-    day_end   = day_start + timedelta(days=1)  # 다음 날 00:00:00
-
-    # 2) range 대신 ≥start, <end 필터 적용
+    # timestamp__date 필터로 해당 날짜의 모든 레코드 조회
     qs = SensorData.objects.filter(
         user=request.user,
-        timestamp__gte=day_start,
-        timestamp__lt=day_end
+        timestamp__date=d
     ).order_by('timestamp')
 
-    # 3) 타임라인 생성
+    # naive datetime 그대로 출력
     timeline = [
         {
-            'time': timezone.localtime(s.timestamp).strftime('%H:%M:%S'),
+            'time': s.timestamp.strftime('%H:%M:%S'),
             'heart_rate': s.heart_rate,
-            'pressure':   s.pressure
+            'pressure':   s.pressure,
         }
         for s in qs
     ]
-    return Response({'timeline': timeline})
 
     return Response({'timeline': timeline})
 
