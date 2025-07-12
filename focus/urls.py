@@ -36,6 +36,8 @@ urlpatterns = [
     path('score/',         FocusScoreAPIView.as_view(),     name='focus-score'),
     # 타임라인
     path('timeline/',      views.focus_timeline,            name='focus-timeline'),
+    # 센서 타임라인
+    path('sensor-timeline/', views.sensor_timeline, name='sensor-timeline'),
     # 분 단위 깜빡임 요약
     path('blink_summary/', views.blink_summary_by_minute,   name='blink-summary'),
     # 공부 시작

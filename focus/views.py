@@ -359,6 +359,38 @@ def focus_timeline(request):
 
     return JsonResponse({"timeline": timeline})
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def sensor_timeline(request):
+    date_str = request.query_params.get('date')
+    if not date_str:
+        return Response({'error': 'date parameter required'}, status=400)
+
+    # YYYY-MM-DD 파싱
+    try:
+        d = parse_date(date_str)
+    except:
+        return Response({'error': 'Invalid date format'}, status=400)
+
+    start = datetime.combine(d, time.min)
+    end   = datetime.combine(d, time.max)
+
+    qs = SensorData.objects.filter(
+        user=request.user,
+        timestamp__range=(start, end)
+    ).order_by('timestamp')
+
+    timeline = []
+    for s in qs:
+        local_ts = timezone.localtime(s.timestamp)
+        timeline.append({
+            'time': local_ts.strftime('%H:%M:%S'),
+            'heart_rate': s.heart_rate,
+            'pressure':   s.pressure
+        })
+
+    return Response({'timeline': timeline})
+
 
 # 10) 분 단위 깜빡임 요약
 @api_view(['GET'])
