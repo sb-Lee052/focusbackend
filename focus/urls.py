@@ -9,7 +9,7 @@ from focus.views import start_study, end_study, all_summary_view
 from .views import trigger_rpi_measure
 from .views import focus_timeline_detail
 from .views import focus_score_data
-from .views import user_average_focus_duration
+from .views import user_average_session_focus_duration
 
 
 
@@ -56,6 +56,6 @@ urlpatterns = [
     #가장 집중도 좋은 장소
     path('best-places/', views.best_places, name='best_places'),
 
-    path('focus-durations/', user_average_focus_duration, name='focus-durations'),
+    path('focus-durations/', user_average_session_focus_duration, name='focus-durations'),
 ]
 
