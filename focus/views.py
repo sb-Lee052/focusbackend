@@ -377,7 +377,7 @@ def sensor_timeline(request):
 
     qs = SensorData.objects.filter(
         user=request.user,
-        timestamp__range=(start, end)
+        timestamp__date=d
     ).order_by('timestamp')
 
     timeline = []
