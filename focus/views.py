@@ -372,22 +372,28 @@ def sensor_timeline(request):
     except:
         return Response({'error': 'Invalid date format'}, status=400)
 
-    start = datetime.combine(d, time.min)
-    end   = datetime.combine(d, time.max)
+    # 1) 로컬 타임존-aware한 하루 시작·끝 시각 만들기
+    tz = timezone.get_current_timezone()
+    day_start = timezone.make_aware(datetime.combine(d, time.min), tz)
+    day_end   = day_start + timedelta(days=1)  # 다음 날 00:00:00
 
+    # 2) range 대신 ≥start, <end 필터 적용
     qs = SensorData.objects.filter(
         user=request.user,
-        timestamp__date=d
+        timestamp__gte=day_start,
+        timestamp__lt=day_end
     ).order_by('timestamp')
 
-    timeline = []
-    for s in qs:
-        local_ts = timezone.localtime(s.timestamp)
-        timeline.append({
-            'time': local_ts.strftime('%H:%M:%S'),
+    # 3) 타임라인 생성
+    timeline = [
+        {
+            'time': timezone.localtime(s.timestamp).strftime('%H:%M:%S'),
             'heart_rate': s.heart_rate,
             'pressure':   s.pressure
-        })
+        }
+        for s in qs
+    ]
+    return Response({'timeline': timeline})
 
     return Response({'timeline': timeline})
 
