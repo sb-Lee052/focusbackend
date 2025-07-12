@@ -159,12 +159,6 @@ def upload_focus_data(request):
 # 4) 날짜별 시간대 집중도 집계
 @api_view(['GET'])
 def focus_data_by_date(request):
-    sensor_qs = SensorData.objects.filter(
-        user=request.user,
-        timestamp__date=date_obj
-    ).order_by('timestamp')
-    sensor_data = SensorDataSerializer(sensor_qs, many=True).data
-
     date_str = request.query_params.get('date')
     if not date_str:
         return Response({'error': 'date parameter required'}, status=status.HTTP_400_BAD_REQUEST)
@@ -188,7 +182,6 @@ def focus_data_by_date(request):
     )
     return Response({'date': date_str,
                      'hourly_stats': list(hourly),
-                     'sensor_data': sensor_data,
                      })
 
 
@@ -203,6 +196,7 @@ def get_focus_summary(request):
     start = datetime.combine(date, time.min)
     end = datetime.combine(date, time.max)
 
+    # 1) FocusData 집계
     data = FocusData.objects.filter(timestamp__range=(start, end))
 
     blink_total = data.aggregate(Sum('blink_count'))['blink_count__sum'] or 0
@@ -224,6 +218,14 @@ def get_focus_summary(request):
         total_duration_sec=total_duration_sec
     )
 
+    # 2) SensorData 집계 – 해당 날짜의 평균 심박수·압력
+    sd_qs = SensorData.objects.filter(
+        user=request.user,
+        timestamp__range=(start, end)
+    )
+    avg_hr   = sd_qs.aggregate(Avg('heart_rate'))['heart_rate__avg'] or 0
+    avg_pres = sd_qs.aggregate(Avg('pressure'))   ['pressure__avg']   or 0
+
     return JsonResponse({
         "blink_count": blink_total,
         "eyes_closed_time_sec": int(eyes_closed),
@@ -231,7 +233,8 @@ def get_focus_summary(request):
         "focus_score": score,
         "study_time_min": int(total_duration_sec / 60),
         "present_ratio": present_ratio,
-        "heart_rate": True
+        "heart_rate": round(avg_hr, 1),
+        "pressure": round(avg_pres, 1),
     })
 
 
