@@ -133,6 +133,8 @@ def get_last_n_days_summary(user, days=7):
         )
         .order_by('day')
     )
+    print("DEBUG focus summary count:", qs.count())
+    print("DEBUG focus summary sample:", list(qs[:3]))
 
     # StudySession에서 날짜별 세션 길이 통계 (분 단위)
     sess_qs = (
@@ -149,6 +151,8 @@ def get_last_n_days_summary(user, days=7):
         )
         .order_by('day')
     )
+    print("DEBUG session summary count:", sess_qs.count())
+    print("DEBUG session summary sample:", list(sess_qs[:3]))
 
     # 두 QuerySet을 날짜별 dict로 합치기
     daily_map = {d['day']: d for d in qs}
