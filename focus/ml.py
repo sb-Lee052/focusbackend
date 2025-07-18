@@ -168,6 +168,7 @@ def get_last_n_days_summary(user, days=7):
             'min_focus': min_min,
             'max_focus': max_min,
         })
+    print("DEBUG daily_map keys:", list(daily_map.keys()))
 
     # 순서 보장하면서 리스트로 반환, 부족한 날은 0으로 채움
     daily = []
