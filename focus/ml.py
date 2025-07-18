@@ -77,49 +77,27 @@ sample_sessions = [
 
 
 def compute_shap(user, session_id):
-    global __explainer
-    if __explainer is None:
-        import shap
-        # 모델 로드
-        with open(settings.BASE_DIR / 'focus' / 'models' / 'explain_model.pkl', 'rb') as f:
-            explain_model = pickle.load(f)
-        # background 생성
-        from .models import StudySession
-        cutoff = timezone.now() - timedelta(days=60)
-        recent = StudySession.objects.filter(end_at__gte=cutoff, end_at__isnull=False)
-        bg = np.vstack([
-            extract_session_features(s.user, s.id) for s in recent
-        ]) if recent else np.zeros((1, len(FEATURE_NAMES)))
-        __explainer = shap.TreeExplainer(explain_model, data=bg)
-
-    x = extract_session_features(user, session_id).reshape(1, -1)
-    vals = __explainer.shap_values(x)[0]
+    import shap
     # 1) 모델 로드
-    with open(settings.BASE_DIR / 'focus' / 'models' / 'explain_model.pkl', 'rb') as f:
+    with open(settings.BASE_DIR/'focus'/'models'/'explain_model.pkl','rb') as f:
         explain_model = pickle.load(f)
 
-    # 2) background 생성 (최근 60일 세션 피처)
+    # 2) background 생성
     from .models import StudySession
     cutoff = timezone.now() - timedelta(days=60)
-    recent = StudySession.objects.filter(
-        end_at__gte=cutoff,
-        end_at__isnull=False
-    )
-    bg = np.vstack([
-        extract_session_features(s.user, s.id)
-        for s in recent
-    ]) if recent else np.zeros((1, len(FEATURE_NAMES)))
+    recent = StudySession.objects.filter(end_at__gte=cutoff, end_at__isnull=False)
+    bg = np.vstack([extract_session_features(s.user, s.id) for s in recent]) \
+         if recent else np.zeros((1, len(FEATURE_NAMES)))
 
-    # 3) Explainer 생성: 자동으로 최적 Explainer 선택
+    # 3) Explainer 생성
     explainer = shap.Explainer(explain_model, bg)
 
-    # 4) 현재 세션 피처 벡터
+    # 4) 대상 세션 피처 벡터
     x = extract_session_features(user, session_id).reshape(1, -1)
 
-    # 5) SHAP 값 계산
-    shap_out = explainer(x)  # ShapValues 객체
-    vals = shap_out.values[0]  # .values는 (1, n_features) 형태
-
+    # 5) SHAP 계산 및 반환
+    shap_out = explainer(x)
+    vals = shap_out.values[0]
     return {
         'feature_names': FEATURE_NAMES,
         'shap_values': [float(v) for v in vals]
