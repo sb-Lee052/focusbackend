@@ -16,8 +16,13 @@ class StudySession(models.Model):
     start_at = models.DateTimeField()
     end_at   = models.DateTimeField(null=True, blank=True)
 
+    success_score = models.FloatField(
+        null=True, blank=True,
+        help_text="(예: 세션 성공도, 세션 길이, 별점 등)"
+    )
+
     def __str__(self):
-        return f"{self.user} @ {self.place} ({self.start_at} – {self.end_at or '…'})"
+        return f"{self.user} @ {self.place} ({self.start_at} – {self.end_at})"
 
 
 class FocusData(models.Model):

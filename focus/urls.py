@@ -56,5 +56,13 @@ urlpatterns = [
     path('best-places/', views.best_places, name='best_places'),
 
     path('focus-durations/', user_average_session_focus_duration, name='focus-durations'),
+
+    path('archetype/', views.archetype_view, name='archetype'),
+
+    path('daily-schedule/', views.daily_schedule_view, name='daily_schedule'),
+
+    path('anomaly/', views.anomaly_view, name='anomaly'),
+
+    path('explain/', views.explain_view, name='explain'),
 ]
 
