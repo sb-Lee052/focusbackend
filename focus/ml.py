@@ -10,7 +10,6 @@ from django.db import models
 from django.db.models import Avg, Sum, Min, Max, Case, When, FloatField, Count
 from django.db.models.functions import TruncDate, ExtractHour
 
-
 from .features import get_window_features, extract_session_features
 from .models import FocusData, SensorData, StudySession
 
@@ -19,7 +18,6 @@ __kmeans = None
 __explainer = None
 _policy = None
 _anomaly = None
-
 
 
 def _load_anomaly():
@@ -71,13 +69,10 @@ sample_sessions = [
 ]
 
 
-
-
-
 # ──────────────────────────────────────────────────────────
 # SHAP/LIME 으로 피처 중요도 개인화
-#목적: “어떤 피처가 내 세션 성패에 가장 큰 영향을 줬을까?” 를 설명
-#언제: 피드백 페이지 ‘피처 중요도’ 섹션에 하루·최근 세션 단위로 보여줌
+# 목적: “어떤 피처가 내 세션 성패에 가장 큰 영향을 줬을까?” 를 설명
+# 언제: 피드백 페이지 ‘피처 중요도’ 섹션에 하루·최근 세션 단위로 보여줌
 # ──────────────────────────────────────────────────────────
 
 
@@ -86,7 +81,7 @@ def compute_shap(user, session_id):
     if __explainer is None:
         import shap
         # 모델 로드
-        with open(settings.BASE_DIR/'focus'/'models'/'explain_model.pkl','rb') as f:
+        with open(settings.BASE_DIR / 'focus' / 'models' / 'explain_model.pkl', 'rb') as f:
             explain_model = pickle.load(f)
         # background 생성
         from .models import StudySession
@@ -102,15 +97,12 @@ def compute_shap(user, session_id):
     return {'feature_names': FEATURE_NAMES, 'shap_values': vals.tolist()}
 
 
-
-
-
 # ──────────────────────────────────────────────────────────
 # 2) 최근 days일 치 “하루 요약” 집계 함수
 # ──────────────────────────────────────────────────────────
 def get_last_n_days_summary(user, days=7):
     end = date.today()
-    start = end - timedelta(days=days-1)
+    start = end - timedelta(days=days - 1)
 
     # FocusData에서 날짜별로 기본 통계 집계
     qs = (
@@ -172,14 +164,14 @@ def get_last_n_days_summary(user, days=7):
         day = start + timedelta(days=offset)
         row = daily_map.get(day, {})
         daily.append({
-            'focus_score':   float(row.get('focus_score', 0.0)),
-            'blink_count':   float(row.get('blink_count', 0)),
-            'zoneout_time':  float(row.get('zoneout_time', 0.0)) / 60,  # 초→분
-            'absent_ratio':  float(row.get('absent_ratio', 0.0)),
-            'start_hour':    float(row.get('start_hour', 0.0)),
-            'avg_focus':     float(row.get('avg_focus', 0.0)),
-            'min_focus':     float(row.get('min_focus', 0.0)),
-            'max_focus':     float(row.get('max_focus', 0.0)),
+            'focus_score': float(row.get('focus_score', 0.0)),
+            'blink_count': float(row.get('blink_count', 0)),
+            'zoneout_time': float(row.get('zoneout_time', 0.0)) / 60,  # 초→분
+            'absent_ratio': float(row.get('absent_ratio', 0.0)),
+            'start_hour': float(row.get('start_hour', 0.0)),
+            'avg_focus': float(row.get('avg_focus', 0.0)),
+            'min_focus': float(row.get('min_focus', 0.0)),
+            'max_focus': float(row.get('max_focus', 0.0)),
         })
     return daily
 
@@ -225,14 +217,14 @@ def predict_archetype(user):
     label = model.predict(features)[0]
     return int(label)
 
+
 # ──────────────────────────────────────────────────────────
 # 휴식/학습 시간 추천 함수
 # ──────────────────────────────────────────────────────────
 
 # 모델 로드 (입력 차원도 extract_user_features와 맞춰주세요)
-STATE_DIM = 8     # 예시: extract_user_features에서 쓰는 피처 개수
+STATE_DIM = 8  # 예시: extract_user_features에서 쓰는 피처 개수
 MODEL_PATH = settings.BASE_DIR / 'focus' / 'models' / 'policy_net.pkl'
-
 
 
 def get_daily_recommendation(user, days=3):
@@ -271,6 +263,7 @@ def get_daily_recommendation(user, days=3):
         'avg_focus': round(avg_focus, 2)
     }
 
+
 # ──────────────────────────────────────────────────────────
 # 목적: 사용자의 평소 집중 패턴과 크게 다른 순간을 찾아내어 “요즘 컨디션이 평소와 다릅니다” 같은 통찰을 제공
 
@@ -279,21 +272,26 @@ def get_daily_recommendation(user, days=3):
 
 anomaly_clf = _load_anomaly()
 
-def detect_anomalies(user, session_id):
+
+def detect_anomalies(user, session_id, threshold=0.3):
     """
     윈도우별로 이상치(–1) / 정상(1) 레이블 반환
     그리고 이상치가 총 몇 %였는지 요약
     """
-    X = get_window_features(user, session_id)            # (T, feat_dim)
+    X = get_window_features(user, session_id)  # (T, feat_dim)
     if X.size == 0:
-        return {'anomaly_ratio':0.0,'anomaly_windows':0,'total_windows':0}
-    preds = anomaly_clf.predict(X)           # 1 or -1
+        return {'anomaly_ratio': 0.0, 'anomaly_windows': 0, 'total_windows': 0}
+
+    # focus_score 칼럼(예: 0번 인덱스) 기준으로 threshold 미만만 이상치로
+    focus_scores = X[:, 0]  # X[:, FEATURE_NAMES.index('total_focus')] 이면 더 명시적
+    preds = np.where(focus_scores < threshold, -1, 1)
+
     total = len(preds)
     n_anom = (preds == -1).sum()
     return {
-      'anomaly_ratio': round(n_anom/total, 3),
-      'anomaly_windows': int(n_anom),
-      'total_windows': int(total)
+        'anomaly_ratio': round(n_anom / total, 3),
+        'anomaly_windows': int(n_anom),
+        'total_windows': int(total)
     }
 
 

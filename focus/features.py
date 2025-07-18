@@ -1,14 +1,11 @@
-# ──────────────────────────────────────────────────────────
-# 윈도우 피쳐(10초단위), 세션피쳐(한세션 단위) 계산 추가
-# ──────────────────────────────────────────────────────────
-
 import numpy as np
 from django.db.models import Avg, Sum, StdDev, Case, When, FloatField, Count
 from django.db.models.functions import Trunc
 from .models import FocusData, SensorData
+from .constants import FEATURE_NAMES
 
 def get_window_features(user, session_id, window_sec=10):
-    # 1) FocusData 윈도우별 집계
+    # 1) FocusData 집계
     fd_qs = (
         FocusData.objects
         .filter(user=user, session_id=session_id)
@@ -27,7 +24,7 @@ def get_window_features(user, session_id, window_sec=10):
         .order_by('win')
     )
 
-    # 2) SensorData 윈도우별 집계 (필기 포함)
+    # 2) SensorData 집계 (심박·압력·필기)
     sd_qs = (
         SensorData.objects
         .filter(user=user, session_id=session_id)
@@ -43,9 +40,9 @@ def get_window_features(user, session_id, window_sec=10):
         .order_by('win')
     )
 
-    # 3) 두 결과를 win(시간창) 기준으로 매핑
-    fd_map = {row['win']: row for row in fd_qs}
-    sd_map = {row['win']: row for row in sd_qs}
+    # 3) 두 결과를 win 기준으로 합치기
+    fd_map = {r['win']: r for r in fd_qs}
+    sd_map = {r['win']: r for r in sd_qs}
 
     feats = []
     for win in sorted(set(fd_map) | set(sd_map)):
@@ -61,25 +58,32 @@ def get_window_features(user, session_id, window_sec=10):
             f.get('present_ratio', 0.0),
             s.get('hr_std', 0.0),
             s.get('pressure_std', 0.0),
-            wc,                # 필기 횟수
-            wc / n             # 필기 비율
+            wc,            # 필기 횟수
+            wc / n         # 윈도우당 필기 비율
         ])
 
     return np.array(feats, dtype=float)
 
-def extract_session_features(user, session_id):
-    X = get_window_features(user, session_id)
-    if X.size == 0:
-        return np.zeros(9, dtype=float)
 
-    total_focus       = X[:,0].sum()
-    avg_blink         = X[:,1].mean()
-    total_zoning      = X[:,3].sum()
-    total_eyes_closed = X[:,2].sum()
-    hr_var            = float(np.var(X[:,5]))
-    pr_var            = float(np.var(X[:,6]))
-    total_writing     = X[:,7].sum()          # 전체 필기 샘플 수
-    avg_writing_ratio = float(X[:,8].mean())  # 윈도우당 평균 필기 비율
+def extract_session_features(user, session_id):
+    """
+    한 세션(session_id)의 윈도우별 피처를 집계하여
+    총 9개(FeatureNames와 일치)의 숫자 배열을 반환합니다.
+    """
+    X = get_window_features(user, session_id)  # shape = (T, 9)
+    # 윈도우가 없으면 0 벡터 반환
+    if X.size == 0:
+        return np.zeros((len(FEATURE_NAMES),), dtype=float)
+
+    total_focus       = float(X[:, 0].mean())            # 윈도우별 avg_focus 평균
+    avg_blink         = float(X[:, 1].mean())            # 윈도우별 sum_blink 평균
+    total_zoning      = float(X[:, 3].sum())             # 윈도우별 sum_zoning 합계
+    total_eyes_closed = float(X[:, 2].sum())             # 윈도우별 sum_eyes_closed 합계
+    hr_var            = float(np.nanvar(X[:, 5]))        # 윈도우별 hr_std 분산
+    pr_var            = float(np.nanvar(X[:, 6]))        # 윈도우별 pressure_std 분산
+    total_writing     = float(X[:, 7].sum())             # 윈도우별 writing_count 합계
+    avg_writing_ratio = float(X[:, 8].mean())            # 윈도우당 글쓰기 비율 평균
+    window_count      = float(X.shape[0])                # 윈도우 개수
 
     return np.array([
         total_focus,
@@ -90,5 +94,5 @@ def extract_session_features(user, session_id):
         pr_var,
         total_writing,
         avg_writing_ratio,
-        X.shape[0]
+        window_count
     ], dtype=float)

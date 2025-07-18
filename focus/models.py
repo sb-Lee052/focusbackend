@@ -1,5 +1,5 @@
 # focus/models.py
-
+from django.utils import timezone
 from django.db import models
 from django.contrib.auth.models import User
 from django.conf import settings
@@ -21,6 +21,14 @@ class StudySession(models.Model):
         help_text="(예: 세션 성공도, 세션 길이, 별점 등)"
     )
 
+    def save(self, *args, **kwargs):
+        # 신규 생성 시점: end_at이 NULL인 기존 세션을 start_at 시점으로 종료 처리
+        if not self.pk:
+            (StudySession.objects
+                .filter(user=self.user, end_at__isnull=True)
+                .update(end_at=self.start_at))
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.user} @ {self.place} ({self.start_at} – {self.end_at})"
 
@@ -32,8 +40,11 @@ class FocusData(models.Model):
         related_name = 'focus_data'
                             )
     score = models.IntegerField(default=0.0)
-    session = models.ForeignKey(StudySession, on_delete=models.CASCADE, null=True, blank=True,
-        related_name="focus_data")
+    session = models.ForeignKey(
+            StudySession,
+            on_delete = models.CASCADE,
+            related_name = "focus_data"
+            )
     timestamp = models.DateTimeField()
     blink_count = models.IntegerField(
         default=0,
