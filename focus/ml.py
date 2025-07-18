@@ -101,7 +101,10 @@ def compute_shap(user, session_id):
     # 2) background 생성 (최근 60일 세션 피처)
     from .models import StudySession
     cutoff = timezone.now() - timedelta(days=60)
-    recent = StudySession.objects.filter(end_atgte=cutoff, end_atisnull=False)
+    recent = StudySession.objects.filter(
+        end_at__gte=cutoff,
+        end_at__isnull=False
+    )
     bg = np.vstack([
         extract_session_features(s.user, s.id)
         for s in recent
