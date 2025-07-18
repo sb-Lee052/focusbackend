@@ -64,5 +64,7 @@ urlpatterns = [
     path('anomaly/', views.anomaly_view, name='anomaly'),
 
     path('explain/', views.explain_view, name='explain'),
+
+    path('last-session/', views.last_session_view, name='last_session'),
 ]
 
