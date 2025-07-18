@@ -94,7 +94,33 @@ def compute_shap(user, session_id):
 
     x = extract_session_features(user, session_id).reshape(1, -1)
     vals = __explainer.shap_values(x)[0]
-    return {'feature_names': FEATURE_NAMES, 'shap_values': vals.tolist()}
+    # 1) 모델 로드
+    with open(settings.BASE_DIR / 'focus' / 'models' / 'explain_model.pkl', 'rb') as f:
+        explain_model = pickle.load(f)
+
+    # 2) background 생성 (최근 60일 세션 피처)
+    from .models import StudySession
+    cutoff = timezone.now() - timedelta(days=60)
+    recent = StudySession.objects.filter(end_atgte=cutoff, end_atisnull=False)
+    bg = np.vstack([
+        extract_session_features(s.user, s.id)
+        for s in recent
+    ]) if recent else np.zeros((1, len(FEATURE_NAMES)))
+
+    # 3) Explainer 생성: 자동으로 최적 Explainer 선택
+    explainer = shap.Explainer(explain_model, bg)
+
+    # 4) 현재 세션 피처 벡터
+    x = extract_session_features(user, session_id).reshape(1, -1)
+
+    # 5) SHAP 값 계산
+    shap_out = explainer(x)  # ShapValues 객체
+    vals = shap_out.values[0]  # .values는 (1, n_features) 형태
+
+    return {
+        'feature_names': FEATURE_NAMES,
+        'shap_values': [float(v) for v in vals]
+    }
 
 
 # ──────────────────────────────────────────────────────────
