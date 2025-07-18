@@ -753,14 +753,7 @@ def anomaly_view(request):
     return Response(res)
 
 # SHAP/LIME 으로 피처 중요도 개인화
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def explain_view(request):
-    session_id = request.GET.get('session_id')
-    if not session_id:
-        return Response({'error':'session_id required'}, status=400)
-    res = compute_shap(request.user, session_id)
-    return Response(res)
+#explain_view 삭제
 
 # 세션관련
 @api_view(['GET'])

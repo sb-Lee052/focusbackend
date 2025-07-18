@@ -75,34 +75,7 @@ sample_sessions = [
 # 언제: 피드백 페이지 ‘피처 중요도’ 섹션에 하루·최근 세션 단위로 보여줌
 # ──────────────────────────────────────────────────────────
 
-
-def compute_shap(user, session_id):
-    import shap
-    # 1) 모델 로드
-    with open(settings.BASE_DIR/'focus'/'models'/'explain_model.pkl','rb') as f:
-        explain_model = pickle.load(f)
-
-    # 2) background 생성
-    from .models import StudySession
-    cutoff = timezone.now() - timedelta(days=60)
-    recent = StudySession.objects.filter(end_at__gte=cutoff, end_at__isnull=False)
-    bg = np.vstack([extract_session_features(s.user, s.id) for s in recent]) \
-         if recent else np.zeros((1, len(FEATURE_NAMES)))
-
-    # 3) Explainer 생성
-    explainer = shap.Explainer(explain_model, bg)
-
-    # 4) 대상 세션 피처 벡터
-    x = extract_session_features(user, session_id).reshape(1, -1)
-
-    # 5) SHAP 계산 및 반환
-    shap_out = explainer(x)
-    vals = shap_out.values[0]
-    return {
-        'feature_names': FEATURE_NAMES,
-        'shap_values': [float(v) for v in vals]
-    }
-
+# 1) compute shap 제거
 
 # ──────────────────────────────────────────────────────────
 # 2) 최근 days일 치 “하루 요약” 집계 함수
