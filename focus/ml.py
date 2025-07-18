@@ -2,7 +2,6 @@
 # 최상단에 이렇게 한 번만
 import pickle
 import numpy as np
-import torch
 
 from datetime import date, timedelta
 from django.conf import settings
@@ -11,7 +10,7 @@ from django.db import models
 from django.db.models import Avg, Sum, Min, Max, Case, When, FloatField, Count
 from django.db.models.functions import TruncDate, ExtractHour
 
-from .rl_model import PolicyNet
+
 from .features import get_window_features, extract_session_features
 from .models import FocusData, SensorData, StudySession
 
@@ -21,21 +20,7 @@ __explainer = None
 _policy = None
 _anomaly = None
 
-def _load_policy():
-    global _policy
-    if _policy is None:
-        try:
-            from .rl_model import PolicyNet
-            STATE_DIM = 8
-            path = settings.BASE_DIR / 'focus' / 'models' / 'policy_net.pkl'
-            policy = PolicyNet(STATE_DIM)
-            with open(path, 'rb') as f:
-                policy.load_state_dict(pickle.load(f))
-            policy.eval()
-            _policy = policy
-        except FileNotFoundError:
-            _policy = None
-    return _policy
+
 
 def _load_anomaly():
     global _anomaly
@@ -248,7 +233,7 @@ def predict_archetype(user):
 STATE_DIM = 8     # 예시: extract_user_features에서 쓰는 피처 개수
 MODEL_PATH = settings.BASE_DIR / 'focus' / 'models' / 'policy_net.pkl'
 
-policy = _load_policy()
+
 
 def get_daily_recommendation(user, days=3):
     """
@@ -261,11 +246,11 @@ def get_daily_recommendation(user, days=3):
     #    과거 days일의 focus_score를 모아서 배열로 만듭니다.
     daily = get_last_n_days_summary(user, days=days)
     # focus_score가 [0~1] 정규화돼 있다고 가정
-    seq = torch.tensor([ d['focus_score'] for d in daily ], dtype=torch.float32)
+    focus_arr = np.array([d['focus_score'] for d in daily], dtype=float)
 
     # 2) policy에게 하루치 상태(state)를 한번만 넘겨서 액션을 구분합니다.
     #    (여기선 단순히 평균 집중도로 판단해서, 평균이 낮으면 짧게, 높으면 길게)
-    avg_focus = seq.mean().item()
+    avg_focus = float(focus_arr.mean())
 
     # 임계치(threshold)에 비해 평균 집중도가 높으면 더 오래, 낮으면 짧게 권장
     # 예시: 평균 ≥ 0.8 → 50분, 0.6~0.8 → 40분, 0.4~0.6 → 30분, 그 이하 → 20분
@@ -278,7 +263,7 @@ def get_daily_recommendation(user, days=3):
     else:
         study_min = 20
 
-    break_min = 2  # 휴식은 2분으로 고정
+    break_min = 5  # 휴식은 5분으로 고정
 
     return {
         'study_min': study_min,
