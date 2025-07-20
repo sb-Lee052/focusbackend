@@ -20,16 +20,6 @@ _policy = None
 _anomaly = None
 
 
-def _load_anomaly():
-    global _anomaly
-    if _anomaly is None:
-        try:
-            path = settings.BASE_DIR / 'focus' / 'models' / 'anomaly_svm.pkl'
-            with open(path, 'rb') as f:
-                _anomaly = pickle.load(f)
-        except FileNotFoundError:
-            _anomaly = None
-    return _anomaly
 
 
 def _load_kmeans():
@@ -255,7 +245,7 @@ def get_daily_recommendation(user, days=3):
 # 언제: 피드백 페이지를 열었을 때, 최근 세션 중 이상 구간이 있었는지 요약해서 보여줌
 # ──────────────────────────────────────────────────────────
 
-anomaly_clf = _load_anomaly()
+# anomaly_clf = _load_anomaly()
 
 
 def detect_anomalies(user, session_id, threshold=0.3):
