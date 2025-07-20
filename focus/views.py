@@ -4,7 +4,6 @@ from .ml import (
     predict_archetype,
     get_daily_recommendation,
     detect_anomalies,
-    compute_shap
 )
 from django.db.models import Avg, Count
 from django.views.decorators.cache import cache_page
